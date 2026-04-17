@@ -1,40 +1,32 @@
-# This defines equivalence classes for each gene, namely all genes that an
-# Ensembl ID and Entrez ID. The idea here is to be less tied to a single
-# primary identifier, but treat both Ensembl and Entrez as equal partners.
-#
-# Here, we're generally using Ensembl 108 for our EnsDb objects, and
-# whatever happens to be the current state of the OrgDb objects.
+# This defines equivalence classes for each gene - namely, all synonymous identifiers between Entrez and Ensembl. 
+# This may group multiple identifiers of the same type together if they are all synonymous with a single identifier of another type.
+# Indeed, we need to build a graph and isolate each component to resolve very complex synonym structures.
+# (For obvious reasons, symbols are not used to identify synonyms as they are ambiguous and too often re-used.)
 
 library(AnnotationHub)
-ahub <- AnnotationHub(cache="ahub_cache", ask=FALSE)
-
-lists <- list(
-    `10090` = list(ensdb = "AH109367", orgdb = "AH107060"),
-    `9606` = list(ensdb = "AH109336", orgdb = "AH107059"),
-    `6239` = list(ensdb = "AH109275", orgdb = "AH107064"),
-    `10116` = list(ensdb = "AH109438", orgdb = "AH107062"),
-    `7227` = list(ensdb = "AH109306", orgdb = "AH107058"),
-    `7955` = list(ensdb = "AH109309", orgdb = "AH107067"),
-    `9598` = list(ensdb = "AH109433", orgdb = "AH107055")
-)
+ahub <- AnnotationHub(ask=FALSE)
+source("annotations.R")
 
 library(BiocParallel)
-dir.create("genes", showWarnings=FALSE)
+tag <- "v0.3.0"
+output.dir <- paste0("genes-", tag)
+dir.create(output.dir, showWarnings=FALSE)
+
 dump <- function(x, out) {
     if (is.list(x)) {
         dump <- unlist(bplapply(x, paste, collapse="\t", BPPARAM=MulticoreParam()))
     } else {
         dump <- x
     }
-    handle <- gzfile(file.path("genes", out), open="wb")
+    handle <- gzfile(file.path(output.dir, out), open="wb")
     writeLines(dump, con=handle)
     close(handle)
 }
 
 library(igraph)
-for (species in names(lists)) {
-    ensdb <- ahub[[lists[[species]]$ensdb]]
-    orgdb <- ahub[[lists[[species]]$orgdb]]
+for (species in names(annotations)) {
+    ensdb <- ahub[[annotations[[species]]$ensdb]]
+    orgdb <- ahub[[annotations[[species]]$orgdb]]
 
     from.o <- select(orgdb, keys=keys(orgdb), columns="ENSEMBL")
     from.e <- select(ensdb, keys=keys(ensdb), columns="ENTREZID")
@@ -78,14 +70,16 @@ for (species in names(lists)) {
     ensembl2sym <- ensembl2sym[!is.na(ensembl2sym$SYMBOL),]
     sym.by.ensembl <- split(ensembl2sym$SYMBOL, ensembl2sym$GENEID)
 
-    # Can't figure out how to do this faster... whatever.
+    m.entrez <- split(match(names.entrez, names(sym.by.entrez)), f.entrez, drop=FALSE)
+    m.ensembl<- split(match(names.ensembl, names(sym.by.ensembl)), f.ensembl, drop=FALSE)
+    m.entrez <- unname(m.entrez)
+    m.ensembl <- unname(m.ensembl)
+
+    # This bit isn't very fast, but whatever.
     by.sym <- bplapply(seq_along(by.entrez), FUN=function(i) {
-        paste(
-            union(
-                unlist(sym.by.entrez[by.entrez[[i]]], use.names=FALSE), 
-                unlist(sym.by.ensembl[by.ensembl[[i]]], use.names=FALSE)
-            ),
-            collapse="\t"
+        union(
+            unlist(sym.by.entrez[m.entrez[[i]]], use.names=FALSE), 
+            unlist(sym.by.ensembl[m.ensembl[[i]]], use.names=FALSE)
         )
     }, BPPARAM=MulticoreParam())
     dump(by.sym, paste0(species, "_symbols.tsv.gz"))
