@@ -1,4 +1,21 @@
-GO.from.org <- function(orgdb, prefix) {
+# Re-using the same annotations that were used to define the Entrez gene IDs.
+
+library(AnnotationHub)
+ahub <- AnnotationHub(ask=FALSE)
+source("../annotations.R")
+
+library(GO.db)
+go.info <- GO.db::GO_dbInfo()
+go.version <- go.info[go.info$name == "GOSOURCEDATE","value"]
+
+output.tag <- "v1.1.0"
+output.dir <- paste0("output-", output.tag)
+unlink(output.dir, recursive=TRUE)
+dir.create(output.dir, showWarnings=FALSE)
+
+for (species in names(annotations)) {
+    orgdb.name <- annotations[[species]]$orgdb
+    orgdb <- ahub[[orgdb.name]]
     mappings <- select(orgdb, keytype="GO", keys=keys(orgdb, "GO"), columns="ENTREZID")
 
     library(BiocParallel)
@@ -9,35 +26,26 @@ GO.from.org <- function(orgdb, prefix) {
     }, BPPARAM=MulticoreParam())
 
     # Saving the names and descriptions.
-    library(GO.db)
     info <- select(GO.db, keys=names(output), column="TERM")
     payload <- sprintf("%s\t%s\t%s", names(output), info$TERM[match(names(output), info$GOID)], output)
 
-    con <- gzfile(paste0(prefix, ".gmt.gz"), open="wb")
+    con <- gzfile(file.path(output.dir, paste0(species, ".gmt.gz")), open="wb")
     write(payload, file=con)
     close(con)
 
-    # Emitting relevant session information.
-    print(metadata(orgdb))
+    write(
+        file=file.path(output.dir, paste0(species, ".json")),
+        jsonlite::toJSON(
+            list(
+                title="Gene ontology",
+                description=paste0("Gene sets defined from the Gene Ontology (version ", go.version, "), sourced from ", orgdb.name, " in Bioconductor's AnnotationHub."),
+                species=species,
+                maintainer="Aaron Lun",
+                id="entrez",
+                source=paste0("https://github.com/gesel-inc/feedstock/blob/gene-ontology-", output.tag, "/go/build.R")
+            ),
+            auto_unbox=TRUE,
+            pretty=4
+        )
+    )
 }
-
-library(org.Hs.eg.db)
-GO.from.org(org.Hs.eg.db, "human-GO")
-
-library(org.Mm.eg.db)
-GO.from.org(org.Mm.eg.db, "mouse-GO")
-
-library(org.Dm.eg.db)
-GO.from.org(org.Dm.eg.db, "fly-GO")
-
-library(org.Ce.eg.db)
-GO.from.org(org.Ce.eg.db, "worm-GO")
-
-library(org.Rn.eg.db)
-GO.from.org(org.Rn.eg.db, "rat-GO")
-
-library(org.Pt.eg.db)
-GO.from.org(org.Pt.eg.db, "chimp-GO")
-
-library(org.Dr.eg.db)
-GO.from.org(org.Dr.eg.db, "zebrafish-GO")

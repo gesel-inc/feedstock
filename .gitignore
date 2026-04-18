@@ -1,4 +1,4 @@
-*.gmt.gz
+go/output-*
 *.swp
 *_cache/
 assets/
