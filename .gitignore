@@ -3,4 +3,4 @@ msigdb/raw-*
 msigdb/output-*
 *.swp
 assets-*/
-genes-*/
+_genes-*
