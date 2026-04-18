@@ -1,4 +1,6 @@
 go/output-*
+msigdb/raw-*
+msigdb/output-*
 *.swp
 *_cache/
 assets/
