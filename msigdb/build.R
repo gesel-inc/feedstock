@@ -133,15 +133,15 @@ meta.fields <- list(
     )
 )
 
-out.dir0 <- paste0("output-", output.tag)
-unlink(out.dir0, recursive=TRUE)
-dir.create(out.dir0, showWarnings=FALSE)
+out.dir <- "_built"
+unlink(out.dir, recursive=TRUE)
+dir.create(out.dir, showWarnings=FALSE)
 
 for (species in c("Hs", "Mm")) {
     raw.dir <- paste0("raw-", version, ".", species)
 
     if (!file.exists(raw.dir)) {
-        dest <- paste0(raw.dir, ".zip")
+        dest <- paste0(species, ".zip")
         if (!file.exists(dest)) {
             url <- paste0("https://data.broadinstitute.org/gsea-msigdb/msigdb/release/", version, ".", species, "/msigdb_v", version, ".", species, "_files_to_download_locally.zip")
             if (download.file(url, destfile=dest) != 0) {
@@ -155,9 +155,11 @@ for (species in c("Hs", "Mm")) {
     }
 
     # Find the right subdirectory.
-    raw.dir <- file.path(raw.dir, paste0("msigdb_v", version, ".", species, "_files_to_download_locally"), paste0("msigdb_v", version, ".", species, "_GMTs"))
-    out.dir <- file.path(out.dir0, tax.ids[[species]])
-    dir.create(out.dir, showWarnings=FALSE)
+    raw.dir <- file.path(
+        raw.dir,
+        paste0("msigdb_v", version, ".", species, "_files_to_download_locally"),
+        paste0("msigdb_v", version, ".", species, "_GMTs")
+    )
 
     for (x in list.files(raw.dir, pattern="\\.entrez\\.gmt$")) {
         # Ignoring KEGG and Biocarta due to copyright issues.
@@ -222,3 +224,7 @@ for (species in c("Hs", "Mm")) {
         )
     }
 }
+
+write(paste0("msigdb-", output.tag), file="_tag")
+payload <- capture.output(print(sessionInfo()))
+write(c("<details>", "<summary>Session information</summary>", "", "```", payload, "```", "</details>"), file="_session")

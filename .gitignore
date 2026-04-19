@@ -1,6 +1,7 @@
 go/_*
 msigdb/raw-*
-msigdb/output-*
+msigdb/*.zip
+msigdb/_*
 *.swp
 assets-*/
 _genes-*

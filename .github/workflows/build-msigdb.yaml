@@ -1,0 +1,85 @@
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'msigdb/build.R'
+
+name: Build MSigDB sets 
+
+jobs:
+  build:
+    name: Build MSigDB sets 
+    runs-on: ubuntu-latest
+    container: bioconductor/bioconductor_docker:devel
+    steps:
+    - name: Check out
+      uses: actions/checkout@v6
+
+    - name: Specify library directory
+      run: |
+        echo "R_PKG_DIR=${R_HOME}/site-library" >> $GITHUB_ENV
+
+    - name: Restore the package directory
+      uses: actions/cache@v5
+      with:
+        path: ${{ env.R_PKG_DIR }}
+        key: installed-msigdb
+
+    - name: Install all required packages
+      shell: Rscript {0}
+      run : |
+        BiocManager::install(c("jsonlite")) 
+
+    - name: Restore the AnnotationHub cache
+      uses: actions/cache@v5
+      with:
+        path: msigdb/raw-*
+        key: msigdb-raw
+
+    - name: Run the script
+      run: |
+        cd msigdb/
+        Rscript build.R
+        curtag=$(cat _tag)
+        echo "MSIGDB_TAG=${curtag}" >> $GITHUB_ENV
+
+    - name: Check if tag already exists 
+      uses: actions/github-script@v9
+      id: check-exists
+      with:
+        result-encoding: string
+        script: |
+          try {
+              const resp = await github.rest.git.getRef({ 
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: "tags/" + process.env.MSIGDB_TAG
+              });
+              return String(resp.status == 200);
+          } catch (error) {
+              return "false";
+          }
+
+    - name: Create a new tag 
+      uses: actions/github-script@v9
+      if: ${{ steps.check-exists.outputs.result == 'false' }}
+      with:
+        script: |
+          await github.rest.git.createTag({ 
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: process.env.MSIGDB_TAG,
+              message: "",
+              object: context.sha,
+              type: "commit"
+          });
+
+    - name: Create a new release
+      uses: softprops/action-gh-release@v3
+      if: ${{ steps.check-exists.outputs.result == 'false' }}
+      with:
+        tag_name: ${{ env.MSIGDB_TAG }}
+        body_path: msigdb/_session
+        files:
+          msigdb/_built/*
