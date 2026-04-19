@@ -3,5 +3,5 @@ msigdb/raw-*
 msigdb/*.zip
 msigdb/_*
 *.swp
-assets-*/
-_genes-*
+genes/_*
+_*
