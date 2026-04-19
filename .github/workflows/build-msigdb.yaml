@@ -4,6 +4,7 @@ on:
       - master
     paths:
       - 'msigdb/build.R'
+      - 'msigdb/VERSION'
 
 name: Build MSigDB sets 
 
@@ -41,8 +42,11 @@ jobs:
       run: |
         cd msigdb/
         Rscript build.R
-        curtag=$(cat _tag)
-        echo "MSIGDB_TAG=${curtag}" >> $GITHUB_ENV
+
+    - name: Define tag name
+      run: |
+        curtag=$(cat msigdb/VERSION)
+        echo "MSIGDB_TAG=msigdb-${curtag}" >> $GITHUB_ENV
 
     - name: Check if tag already exists 
       uses: actions/github-script@v9

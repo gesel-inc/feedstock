@@ -4,6 +4,7 @@ on:
       - master
     paths:
       - 'genes/build.R'
+      - 'genes/VERSION'
       - 'annotations.R'
 
 name: Build genes
@@ -43,8 +44,11 @@ jobs:
         export ANNOTATION_HUB_CACHE=$(pwd)/ahub_cache
         cd genes/
         Rscript build.R
-        curtag=$(cat _tag)
-        echo "GENES_TAG=${curtag}" >> $GITHUB_ENV
+
+    - name: Define tag name
+      run: |
+        curtag=$(cat genes/VERSION)
+        echo "GENES_TAG=genes-${curtag}" >> $GITHUB_ENV
 
     - name: Check if tag already exists 
       uses: actions/github-script@v9

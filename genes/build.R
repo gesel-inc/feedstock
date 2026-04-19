@@ -85,6 +85,5 @@ for (species in names(annotations)) {
     dump(by.sym, paste0(species, "_symbols.tsv.gz"))
 }
 
-write("genes-v0.3.0", file="_tag")
 payload <- capture.output(print(sessionInfo()))
 write(c("<details>", "<summary>Session information</summary>", "", "```", payload, "```", "</details>"), file="_session")

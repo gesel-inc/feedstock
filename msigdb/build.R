@@ -4,7 +4,7 @@
 version <- "2026.1"
 options(timeout=3600)
 
-output.tag <- "v1.1.0"
+output.tag <- readLines("VERSION")
 tax.ids <- c(Mm="10090", Hs="9606")
 
 meta.fields <- list(
@@ -225,6 +225,5 @@ for (species in c("Hs", "Mm")) {
     }
 }
 
-write(paste0("msigdb-", output.tag), file="_tag")
 payload <- capture.output(print(sessionInfo()))
 write(c("<details>", "<summary>Session information</summary>", "", "```", payload, "```", "</details>"), file="_session")

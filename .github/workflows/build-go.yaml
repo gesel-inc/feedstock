@@ -4,6 +4,7 @@ on:
       - master
     paths:
       - 'go/build.R'
+      - 'go/VERSION'
       - 'annotations.R'
 
 name: Build GO sets 
@@ -43,8 +44,11 @@ jobs:
         export ANNOTATION_HUB_CACHE=$(pwd)/ahub_cache
         cd go/
         Rscript build.R
-        curtag=$(cat _tag)
-        echo "GO_TAG=${curtag}" >> $GITHUB_ENV
+
+    - name: Define tag name
+      run: |
+        curtag=$(cat go/VERSION)
+        echo "GO_TAG=go-${curtag}" >> $GITHUB_ENV
 
     - name: Check if tag already exists 
       uses: actions/github-script@v9

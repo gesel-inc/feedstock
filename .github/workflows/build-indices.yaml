@@ -18,9 +18,12 @@ jobs:
 
     - name: Check latest tags 
       run: |
-        echo "GENES_TAG=genes-v0.3.0" >> $GITHUB_ENV
-        echo "GO_TAG=go-v1.1.0" >> $GITHUB_ENV
-        echo "MSIGDB_TAG=msigdb-v1.1.0" >> $GITHUB_ENV
+        genes_version=$(cat genes/VERSION)
+        echo "GENES_TAG=genes-${genes_version}" >> $GITHUB_ENV
+        go_version=$(cat go/VERSION)
+        echo "GO_TAG=go-${go_version}" >> $GITHUB_ENV
+        msigdb_version=$(cat msigdb/VERSION)
+        echo "MSIGDB_TAG=msigdb-${msigdb_version}" >> $GITHUB_ENV
 
     - name: Restore the gene cache
       id: genes-cache
@@ -94,9 +97,12 @@ jobs:
 
     - name: Check latest tags 
       run: |
-        echo "GENES_TAG=genes-v0.3.0" >> $GITHUB_ENV
-        echo "GO_TAG=go-v1.1.0" >> $GITHUB_ENV
-        echo "MSIGDB_TAG=msigdb-v1.1.0" >> $GITHUB_ENV
+        genes_version=$(cat genes/VERSION)
+        echo "GENES_TAG=genes-${genes_version}" >> $GITHUB_ENV
+        go_version=$(cat go/VERSION)
+        echo "GO_TAG=go-${go_version}" >> $GITHUB_ENV
+        msigdb_version=$(cat msigdb/VERSION)
+        echo "MSIGDB_TAG=msigdb-${msigdb_version}" >> $GITHUB_ENV
 
     - name: Restore the gene cache
       uses: actions/cache@v5
