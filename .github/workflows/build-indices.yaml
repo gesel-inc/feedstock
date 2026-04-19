@@ -2,7 +2,7 @@ on:
   push:
     branches:
       - master
-    path:
+    paths:
       - 'build.R'
       - 'VERSION'
 
