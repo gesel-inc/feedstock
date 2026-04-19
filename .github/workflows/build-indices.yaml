@@ -1,47 +1,163 @@
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+    path:
+      - 'build.R'
+      - 'VERSION'
 
 name: Build indices
 
 jobs:
+  prepare:
+    name: Download assets
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out
+      uses: actions/checkout@v6
+
+    - name: Check latest tags 
+      run: |
+        echo "GENES_TAG=genes-v0.3.0" >> $GITHUB_ENV
+        echo "GO_TAG=go-v1.1.0" >> $GITHUB_ENV
+        echo "MSIGDB_TAG=msigdb-v1.1.0" >> $GITHUB_ENV
+
+    - name: Restore the gene cache
+      id: genes-cache
+      uses: actions/cache@v5
+      with:
+        path: genes/_built
+        key: ${{ env.GENES_TAG }}
+
+    - name: Download gene assets
+      if: steps.genes-cache.outputs.cache-hit != 'true'
+      run: |
+        gh release download ${{ env.GENES_TAG }} -D genes/_built
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    - name: Restore the GO cache
+      id: go-cache
+      uses: actions/cache@v5
+      with:
+        path: go/_built
+        key: ${{ env.GO_TAG }}
+
+    - name: Download GO assets
+      if: steps.go-cache.outputs.cache-hit != 'true'
+      run: |
+        gh release download ${{ env.GO_TAG }} -D go/_built
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    - name: Restore the MSigDB cache
+      id: msigdb-cache
+      uses: actions/cache@v5
+      with:
+        path: msigdb/_built
+        key: ${{ env.MSIGDB_TAG }}
+
+    - name: Download MSigDB assets
+      if: steps.msigdb-cache.outputs.cache-hit != 'true'
+      run: |
+        gh release download ${{ env.MSIGDB_TAG }} -D msigdb/_built
+      env:
+        GH_TOKEN: ${{ github.token }}
+
   build:
     name: Build indices
     runs-on: ubuntu-latest
-    container: bioconductor/bioconductor_docker:RELEASE_3_16
+    container: bioconductor/bioconductor_docker:devel
+    needs: prepare
     steps:
     - name: Check out
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
 
     - name: Set directories
       run: |
         echo "R_PKG_DIR=${R_HOME}/site-library" >> $GITHUB_ENV
 
     - name: Restore the package directory
-      uses: actions/cache@v3
+      uses: actions/cache@v5
       with:
         path: ${{ env.R_PKG_DIR }}
-        key: rpkg-20230203
+        key: installed-indices
 
     - name: Install dependencies
       shell: Rscript {0}
-      run: BiocManager::install(c("jsonlite", "S4Vectors", "BiocFileCache", "AnnotationHub", "igraph", "ensembldb"))
+      run: BiocManager::install(c("S4Vectors", "jsonlite", "httr2", "rappdirs", "Rcpp", "assorthead")) 
 
-    - name: Restore the EnsDb directory
-      uses: actions/cache@v3
-      with:
-        path: ensdb_cache
-        key: ensdb-20230203
+    - name: Install gesel
+      run: |
+        git clone --depth 1 https://github.com/gesel-inc/gesel-R 
+        R CMD INSTALL gesel-R
 
-    - name: Restore the GMT directory
-      uses: actions/cache@v3
+    - name: Check latest tags 
+      run: |
+        echo "GENES_TAG=genes-v0.3.0" >> $GITHUB_ENV
+        echo "GO_TAG=go-v1.1.0" >> $GITHUB_ENV
+        echo "MSIGDB_TAG=msigdb-v1.1.0" >> $GITHUB_ENV
+
+    - name: Restore the gene cache
+      uses: actions/cache@v5
       with:
-        path: gmt_cache
-        key: gmt-20230203
+        path: genes/_built
+        key: ${{ env.GENES_TAG }}
+
+    - name: Restore the GO cache
+      uses: actions/cache@v5
+      with:
+        path: go/_built
+        key: ${{ env.GO_TAG }}
+
+    - name: Restore the MSigDB cache
+      uses: actions/cache@v5
+      with:
+        path: msigdb/_built
+        key: ${{ env.MSIGDB_TAG }}
 
     - name: Build the indices
-      run: R -f "build_index.R"
+      run: |
+        Rscript build.R
+        tag=$(cat VERSION)
+        echo "INDICES_TAG=indices-${tag}" >> $GITHUB_ENV
 
-    - name: Upload assets
-      uses: actions/upload-artifact@v3
+    - name: Check if tag already exists 
+      uses: actions/github-script@v9
+      id: check-exists
       with:
-        name: assets
-        path: assets/*
+        result-encoding: string
+        script: |
+          try {
+              const resp = await github.rest.git.getRef({ 
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: "tags/" + process.env.INDICES_TAG
+              });
+              return String(resp.status == 200);
+          } catch (error) {
+              return "false";
+          }
+
+    - name: Create a new tag 
+      uses: actions/github-script@v9
+      if: ${{ steps.check-exists.outputs.result == 'false' }}
+      with:
+        script: |
+          await github.rest.git.createTag({ 
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: process.env.INDICES_TAG,
+              message: "",
+              object: context.sha,
+              type: "commit"
+          });
+
+    - name: Create a new release
+      uses: softprops/action-gh-release@v3
+      if: ${{ steps.check-exists.outputs.result == 'false' }}
+      with:
+        tag_name: ${{ env.INDICES_TAG }}
+        body_path: _session
+        files:
+          _built/*

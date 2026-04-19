@@ -5,12 +5,11 @@ library(S4Vectors)
 # Update these for new releases.
 
 input.dirs <- c(
-    file.path("go", "output-v1.1.0"),
-    file.path("msigdb", "output-v1.1.0", "10090"),
-    file.path("msigdb", "output-v1.1.0", "9606")
+    file.path("go", "_built"),
+    file.path("msigdb", "_built")
 )
 
-gene.dirs <- "genes-v0.3.0"
+gene.dirs <- file.path("genes", "_built")
 
 output.tag <- "v0.3.0"
 
@@ -122,7 +121,7 @@ for (idir in input.dirs) {
 # Looping across species.
 
 library(gesel)
-output.dir <- paste0("assets-", output.tag)
+output.dir <- "_built"
 unlink(output.dir, recursive=TRUE)
 dir.create(output.dir, showWarnings=FALSE)
 
@@ -141,3 +140,6 @@ for (species in names(species.set.info)) {
         path=output.dir
     )
 }
+
+payload <- capture.output(print(sessionInfo()))
+write(c("<details>", "<summary>Session information</summary>", "", "```", payload, "```", "</details>"), file="_session")
