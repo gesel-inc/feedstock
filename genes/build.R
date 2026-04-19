@@ -5,10 +5,10 @@
 
 library(AnnotationHub)
 ahub <- AnnotationHub(ask=FALSE)
-source("annotations.R")
+source("../annotations.R")
 
 library(BiocParallel)
-output.dir <- "_genes-built"
+output.dir <- "_built"
 unlink(output.dir, recursive=TRUE)
 dir.create(output.dir, showWarnings=FALSE)
 
@@ -85,6 +85,6 @@ for (species in names(annotations)) {
     dump(by.sym, paste0(species, "_symbols.tsv.gz"))
 }
 
-write("genes-v0.3.0", file="_genes-tag")
+write("genes-v0.3.0", file="_tag")
 payload <- capture.output(print(sessionInfo()))
-write(c("<details>", "<summary>Session information</summary>", "", "```", payload, "```", "</details>"), file="_genes-session")
+write(c("<details>", "<summary>Session information</summary>", "", "```", payload, "```", "</details>"), file="_session")
