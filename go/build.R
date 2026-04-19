@@ -42,7 +42,7 @@ for (species in names(annotations)) {
                 species=species,
                 maintainer="Aaron Lun",
                 id="entrez",
-                source=paste0("https://github.com/gesel-inc/feedstock/blob/gene-ontology-", output.tag, "/go/build.R")
+                source=paste0("https://github.com/gesel-inc/feedstock/blob/go-", output.tag, "/go/build.R")
             ),
             auto_unbox=TRUE,
             pretty=4
@@ -50,6 +50,6 @@ for (species in names(annotations)) {
     )
 }
 
-write(paste0("gene-ontology-", output.tag), file="_tag")
+write(paste0("go-", output.tag), file="_tag")
 payload <- capture.output(print(sessionInfo()))
 write(c("<details>", "<summary>Session information</summary>", "", "```", payload, "```", "</details>"), file="_session")
