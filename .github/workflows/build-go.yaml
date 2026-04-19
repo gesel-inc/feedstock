@@ -15,14 +15,14 @@ jobs:
     container: bioconductor/bioconductor_docker:devel
     steps:
     - name: Check out
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Specify library directory
       run: |
         echo "R_PKG_DIR=${R_HOME}/site-library" >> $GITHUB_ENV
 
     - name: Restore the package directory
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ${{ env.R_PKG_DIR }}
         key: installed-go
@@ -33,7 +33,7 @@ jobs:
         BiocManager::install(c("AnnotationHub", "GO.db", "BiocParallel", "jsonlite")) 
 
     - name: Restore the AnnotationHub cache
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ahub_cache 
         key: ahub-go
