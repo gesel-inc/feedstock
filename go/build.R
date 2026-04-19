@@ -9,7 +9,7 @@ go.info <- GO.db::GO_dbInfo()
 go.version <- go.info[go.info$name == "GOSOURCEDATE","value"]
 
 output.tag <- "v1.1.0"
-output.dir <- paste0("output-", output.tag)
+output.dir <- "_built"
 unlink(output.dir, recursive=TRUE)
 dir.create(output.dir, showWarnings=FALSE)
 
@@ -49,3 +49,7 @@ for (species in names(annotations)) {
         )
     )
 }
+
+write(paste0("gene-ontology-", output.tag), file="_tag")
+payload <- capture.output(print(sessionInfo()))
+write(c("<details>", "<summary>Session information</summary>", "", "```", payload, "```", "</details>"), file="_session")

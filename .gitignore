@@ -1,4 +1,4 @@
-go/output-*
+go/_*
 msigdb/raw-*
 msigdb/output-*
 *.swp
