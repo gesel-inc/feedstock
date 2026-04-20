@@ -1,5 +1,4 @@
 library(jsonlite)
-library(S4Vectors)
 
 ###########################################################
 # Update these for new releases.
@@ -20,12 +19,14 @@ for (idir in input.dirs) {
     stopifnot(file.exists(idir))
 }
 
+isSingleString <- function(x) {
+    (is.character(x) && length(x) == 1 && !is.na(x))
+}
+
 species.set.info <- list()
 species.collections <- list()
-species.counter <- list()
 species.mapping <- list()
 species.set.membership <- list()
-species.genes <- list()
 species.ngenes <- list()
 
 for (idir in input.dirs) {
@@ -45,26 +46,14 @@ for (idir in input.dirs) {
 
         # Setting up a species.
         cur.species <- current$species
-        if (!(cur.species %in% names(species.genes))) {
+        if (!(cur.species %in% names(species.mapping))) {
             species.mapping[[cur.species]] <- list()
-            species.counter[[cur.species]] <- 0L
-            species.genes[[cur.species]] <- integer()
             species.set.membership[[cur.species]] <- list()
             species.set.info[[cur.species]] <- list()
             species.collections[[cur.species]] <- list()
         }
 
-        # Loading the GMT file.
-        gmt.path <- file.path(idir, sub("\\.json$", ".gmt.gz", f))
-        fragments <- strsplit(readLines(gmt.path), "\t")
-
-        set.names <- vapply(fragments, FUN=function(x) x[1], FUN.VALUE="")
-        set.descriptions <- vapply(fragments, FUN=function(x) x[2], FUN.VALUE="")
-        cursets <- lapply(fragments, FUN=tail, n=-2)
-        gene.ids <- unlist(cursets, use.names=FALSE)
-        set.ids <- rep(seq_along(cursets), lengths(cursets))
-
-        # Mapping to the gene IDs.
+        # Loading the gene IDs.
         gene.mappings <- species.mapping[[cur.species]]
         if (!(current$id %in% names(gene.mappings))) {
             gene.path <- file.path(gene.dirs, paste0(cur.species, "_", current$id, ".tsv.gz"))
@@ -80,40 +69,44 @@ for (idir in input.dirs) {
         }
         known.ids <- gene.mappings[[current$id]]
 
-        m <- match(gene.ids, names(known.ids))
+        # Loading the GMT file.
+        gmt.path <- file.path(idir, sub("\\.json$", ".gmt.gz", f))
+        fragments <- strsplit(readLines(gmt.path), "\t")
+
+        set.names <- vapply(fragments, FUN=function(x) x[1], FUN.VALUE="")
+        set.descriptions <- vapply(fragments, FUN=function(x) x[2], FUN.VALUE="")
+        set.memberships <- lapply(fragments, FUN=tail, n=-2)
+
+        # Mapping to the gene identifiers, accounting for 1:many mapping to synonyms. 
+        raw.genes <- unlist(set.memberships)
+        raw.sets <- rep(seq_along(set.memberships), lengths(set.memberships))
+
+        m <- match(raw.genes, names(known.ids))
         keep <- !is.na(m)
-        stopifnot(mean(keep) >= 0.95)
+        stopifnot(mean(keep) >= 0.95) # check that most genes are found, to avoid obvious problems with the incorrect ID/species.
+        remapped.genes <- unname(known.ids[m[keep]])
+        remapped.sets <- rep(raw.sets[keep], lengths(remapped.genes))
 
-        gene.ids.mapped <- known.ids[m[keep]]
-        set.ids.mapped <- rep(set.ids[keep], lengths(gene.ids.mapped))
-        gene.ids.mapped <- unlist(gene.ids.mapped, use.names=FALSE)
-        stopifnot(length(set.ids.mapped) == length(gene.ids.mapped))
-
-        by.set <- split(gene.ids.mapped, factor(set.ids.mapped, seq_along(set.names)))
-        by.set <- lapply(by.set, unique)
+        remapped.memberships <- split(
+            unlist(remapped.genes),
+            factor(remapped.sets, seq_along(set.memberships))
+        )
 
         # Filling the values.
         j <- length(species.set.info[[cur.species]]) + 1L
-        species.set.info[[cur.species]][[j]] <- DataFrame(
+        species.set.info[[cur.species]][[j]] <- data.frame(
             name=set.names,
-            description=set.descriptions,
-            size=unname(lengths(by.set)),
-            collection=j,
-            number=seq_along(set.names)
+            description=set.descriptions
         )
 
-        counter <- species.counter[[cur.species]]
-        species.collections[[cur.species]][[j]] <- DataFrame(
+        species.collections[[cur.species]][[j]] <- data.frame(
             title=current$title,
             description=current$description,
             maintainer=current$maintainer,
-            source=current$source,
-            start=counter,
-            size=length(set.names)
+            source=current$source
         )
 
-        species.set.membership[[cur.species]][[j]] <- by.set
-        species.counter[[cur.species]] <- counter + length(set.names)
+        species.set.membership[[cur.species]][[j]] <- remapped.memberships
     }
 }
 
@@ -126,16 +119,14 @@ unlink(output.dir, recursive=TRUE)
 dir.create(output.dir, showWarnings=FALSE)
 
 for (species in names(species.set.info)) {
-    set.info <- do.call(rbind, species.set.info[[species]])
     collections <- do.call(rbind, species.collections[[species]])
-    set.membership <- do.call(c, species.set.membership[[species]])
     stopifnot(anyDuplicated(collections$title) == 0)
 
     prepareDatabaseFiles(
         species=species,
         collections=collections,
-        set.info=set.info,
-        set.membership=set.membership,
+        set.info=species.set.info[[species]],
+        set.membership=species.set.membership[[species]],
         num.genes=species.ngenes[[species]],
         path=output.dir
     )
