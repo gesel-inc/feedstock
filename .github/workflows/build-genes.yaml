@@ -31,7 +31,7 @@ jobs:
     - name: Install all required packages
       shell: Rscript {0}
       run : |
-        BiocManager::install(c("AnnotationHub", "ensembldb", "igraph", "BiocParallel")) 
+        BiocManager::install(c("AnnotationHub", "ensembldb", "igraph")) 
 
     - name: Restore the AnnotationHub cache
       uses: actions/cache@v5

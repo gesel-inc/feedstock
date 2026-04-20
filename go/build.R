@@ -18,12 +18,11 @@ for (species in names(annotations)) {
     orgdb <- ahub[[orgdb.name]]
     mappings <- select(orgdb, keytype="GO", keys=keys(orgdb, "GO"), columns="ENTREZID")
 
-    library(BiocParallel)
     output <- split(mappings$ENTREZID, mappings$GO)
-    output <- bplapply(output, function(x) {
+    output <- vapply(output, function(x) {
         current <- unique(sort(x))
         paste(current, collapse="\t")
-    }, BPPARAM=MulticoreParam())
+    }, FUN.VALUE="")
 
     # Saving the names and descriptions.
     info <- select(GO.db, keys=names(output), column="TERM")

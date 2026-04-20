@@ -7,17 +7,12 @@ library(AnnotationHub)
 ahub <- AnnotationHub(ask=FALSE)
 source("../annotations.R")
 
-library(BiocParallel)
 output.dir <- "_built"
 unlink(output.dir, recursive=TRUE)
 dir.create(output.dir, showWarnings=FALSE)
 
 dump <- function(x, out) {
-    if (is.list(x)) {
-        dump <- unlist(bplapply(x, paste, collapse="\t", BPPARAM=MulticoreParam()))
-    } else {
-        dump <- x
-    }
+    dump <- vapply(x, paste, collapse="\t", FUN.VALUE="")
     handle <- gzfile(file.path(output.dir, out), open="wb")
     writeLines(dump, con=handle)
     close(handle)
@@ -31,6 +26,7 @@ for (species in names(annotations)) {
     from.o <- select(orgdb, keys=keys(orgdb), columns="ENSEMBL")
     from.e <- select(ensdb, keys=keys(ensdb), columns="ENTREZID")
 
+    # Creating equivalent classes based on networks of Entrez/Ensembl synonyms. 
     all.edges <- rbind(
         DataFrame(ensembl = from.o$ENSEMBL, entrez = from.o$ENTREZID),
         DataFrame(ensembl = from.e$GENEID, entrez = from.e$ENTREZID)
@@ -48,40 +44,43 @@ for (species in names(annotations)) {
     f <- factor(as.integer(unname(classes$membership)))
     stopifnot(identical(levels(f), as.character(seq_along(levels(f)))))
 
+    # Dumping the Entrez and Ensembl IDs for each equivalence class.
     names.entrez <- names(classes$membership)[is.entrez]
     f.entrez <- f[is.entrez]
     by.entrez <- split(names.entrez, f.entrez, drop=FALSE)
-    dump(by.entrez, paste0(species, "_entrez.tsv.gz"))
 
     names.ensembl <- names(classes$membership)[!is.entrez]
     f.ensembl <- f[!is.entrez]
     by.ensembl <- split(names.ensembl, f.ensembl, drop=FALSE)
-    dump(by.ensembl, paste0(species, "_ensembl.tsv.gz"))
 
     stopifnot(identical(names(by.entrez), names(by.ensembl)))
-    by.entrez <- unname(by.entrez)
-    by.ensembl <- unname(by.ensembl)
+    dump(by.entrez, paste0(species, "_entrez.tsv.gz"))
+    dump(by.ensembl, paste0(species, "_ensembl.tsv.gz"))
 
+    # Finding the symbols for each equivalence class.
     entrez2sym <- select(orgdb, keys=unique(names.entrez), columns="SYMBOL")
     entrez2sym <- entrez2sym[!is.na(entrez2sym$SYMBOL),]
     sym.by.entrez <- split(entrez2sym$SYMBOL, entrez2sym$ENTREZID)
+
+    m.entrez <- match(names.entrez, names(sym.by.entrez))
+    keep.entrez <- !is.na(m.entrez)
+    remapped.sym.entrez <- unname(sym.by.entrez[m.entrez[keep.entrez]])
+    remapped.f.entrez <- rep(f.entrez[keep.entrez], lengths(remapped.sym.entrez))
+    remapped.sym.entrez <- unlist(remapped.sym.entrez) 
 
     ensembl2sym <- select(ensdb, keys=unique(names.ensembl), columns="SYMBOL")
     ensembl2sym <- ensembl2sym[!is.na(ensembl2sym$SYMBOL),]
     sym.by.ensembl <- split(ensembl2sym$SYMBOL, ensembl2sym$GENEID)
 
-    m.entrez <- split(match(names.entrez, names(sym.by.entrez)), f.entrez, drop=FALSE)
-    m.ensembl<- split(match(names.ensembl, names(sym.by.ensembl)), f.ensembl, drop=FALSE)
-    m.entrez <- unname(m.entrez)
-    m.ensembl <- unname(m.ensembl)
+    m.ensembl <- match(names.ensembl, names(sym.by.ensembl))
+    keep.ensembl <- !is.na(m.ensembl)
+    remapped.sym.ensembl <- unname(sym.by.ensembl[m.ensembl[keep.ensembl]])
+    remapped.f.ensembl <- rep(f.ensembl[keep.ensembl], lengths(remapped.sym.ensembl))
+    remapped.sym.ensembl <- unlist(remapped.sym.ensembl) 
 
-    # This bit isn't very fast, but whatever.
-    by.sym <- bplapply(seq_along(by.entrez), FUN=function(i) {
-        union(
-            unlist(sym.by.entrez[m.entrez[[i]]], use.names=FALSE), 
-            unlist(sym.by.ensembl[m.ensembl[[i]]], use.names=FALSE)
-        )
-    }, BPPARAM=MulticoreParam())
+    by.sym <- split(c(remapped.sym.entrez, remapped.sym.ensembl), c(remapped.f.entrez, remapped.f.ensembl), drop=FALSE)
+    by.sym <- lapply(by.sym, unique)
+    stopifnot(identical(names(by.entrez), names(by.sym)))
     dump(by.sym, paste0(species, "_symbols.tsv.gz"))
 }
 
