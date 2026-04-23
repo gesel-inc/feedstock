@@ -81,7 +81,7 @@ for (species in names(annotations)) {
     by.sym <- split(c(remapped.sym.entrez, remapped.sym.ensembl), c(remapped.f.entrez, remapped.f.ensembl), drop=FALSE)
     by.sym <- lapply(by.sym, unique)
     stopifnot(identical(names(by.entrez), names(by.sym)))
-    dump(by.sym, paste0(species, "_symbols.tsv.gz"))
+    dump(by.sym, paste0(species, "_symbol.tsv.gz"))
 }
 
 payload <- capture.output(print(sessionInfo()))
