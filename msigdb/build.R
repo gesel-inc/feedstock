@@ -60,7 +60,7 @@ meta.fields <- list(
         ),
         c4.cm=list(
             title="MSigDB C4: computational gene sets, CM: cancer modules",
-            descripton="Gene sets defined by Segal et al. 2004. Briefly, the authors compiled gene sets ('modules') from a variety of resources such as KEGG, GO, and others. By mining a large compendium of cancer-related microarray data, they identified 456 such modules as significantly changed in a variety of cancer conditions."
+            description="Gene sets defined by Segal et al. 2004. Briefly, the authors compiled gene sets ('modules') from a variety of resources such as KEGG, GO, and others. By mining a large compendium of cancer-related microarray data, they identified 456 such modules as significantly changed in a variety of cancer conditions."
         ),
         c5.hpo=list(
             title="MSigDB C5: ontology gene sets, HPO: Human Phenotype Ontology",
